@@ -98,7 +98,19 @@ export class QuestionsService {
       throw new Error('Question not found');
     }
 
-    // TODO  Increment author's reputation
+    // Increment author's reputation
+    let reputationChange = 0;
+    if (hasupVoted) {
+      reputationChange = -10;
+    } else if (hasdownVoted) {
+      reputationChange = 12;
+    } else {
+      reputationChange = 10;
+    }
+
+    await this.userModel.findByIdAndUpdate(question.author, {
+      $inc: { reputation: reputationChange },
+    });
 
     return question;
   }
@@ -129,7 +141,19 @@ export class QuestionsService {
       throw new Error('Question not found');
     }
 
-    // TODO  Increment author's reputation
+    // Increment author's reputation
+    let reputationChange = 0;
+    if (hasdownVoted) {
+      reputationChange = 2;
+    } else if (hasupVoted) {
+      reputationChange = -12;
+    } else {
+      reputationChange = -2;
+    }
+
+    await this.userModel.findByIdAndUpdate(question.author, {
+      $inc: { reputation: reputationChange },
+    });
 
     return question;
   }
