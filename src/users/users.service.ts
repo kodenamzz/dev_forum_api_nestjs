@@ -6,12 +6,14 @@ import { User, UserDocument } from '../database/schemas/user.schema';
 import { FilterQuery, Model } from 'mongoose';
 import { Question } from '../database/schemas/question.schema';
 import { GetAllUsersDto } from './dto/get-all-users.dto';
+import { Answer } from '../database/schemas/answer.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Question.name) private questionModel: Model<Question>,
+    @InjectModel(Answer.name) private answerModel: Model<Answer>,
   ) {}
 
   async createUser(createUserDto: CreateUserDto): Promise<UserDocument> {
@@ -124,7 +126,15 @@ export class UsersService {
       // delete user questions
       await this.questionModel.deleteMany({ author: user._id });
 
-      // TODO: delete user answers, comments, etc.
+      // delete user answers
+      // We need to also update the questions to remove these answers
+      const userAnswers = await this.answerModel.find({ author: user._id });
+      for (const answer of userAnswers) {
+        await this.questionModel.findByIdAndUpdate(answer.question, {
+          $pull: { answers: answer._id },
+        });
+      }
+      await this.answerModel.deleteMany({ author: user._id });
 
       const deletedUser = await this.userModel.findByIdAndDelete(user._id);
 

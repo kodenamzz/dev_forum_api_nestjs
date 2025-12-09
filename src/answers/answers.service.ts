@@ -63,8 +63,18 @@ export class AnswersService {
     return { answers, isNextAnswer };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} answer`;
+  async findOne(id: string) {
+    try {
+      const answer = await this.answerModel.findById(id).populate({
+        path: 'author',
+        model: this.userModel,
+        select: '_id clerkId name picture',
+      });
+      return answer;
+    } catch (error) {
+      Logger.error('can not find answer', error);
+      throw error;
+    }
   }
 
   async upvoteAnswer(answerVoteDto: AnswerVoteDto) {
@@ -93,7 +103,19 @@ export class AnswersService {
       throw new Error('Answer not found');
     }
 
-    // TODO  Increment author's reputation
+    // Increment author's reputation
+    let reputationChange = 0;
+    if (hasupVoted) {
+      reputationChange = -10;
+    } else if (hasdownVoted) {
+      reputationChange = 12;
+    } else {
+      reputationChange = 10;
+    }
+
+    await this.userModel.findByIdAndUpdate(answer.author, {
+      $inc: { reputation: reputationChange },
+    });
 
     return answer;
   }
@@ -124,16 +146,50 @@ export class AnswersService {
       throw new Error('Answer not found');
     }
 
-    // TODO  Increment author's reputation
+    // Increment author's reputation
+    let reputationChange = 0;
+    if (hasdownVoted) {
+      reputationChange = 2;
+    } else if (hasupVoted) {
+      reputationChange = -12;
+    } else {
+      reputationChange = -2;
+    }
+
+    await this.userModel.findByIdAndUpdate(answer.author, {
+      $inc: { reputation: reputationChange },
+    });
 
     return answer;
   }
 
-  update(id: number, updateAnswerDto: UpdateAnswerDto) {
-    return `This action updates a #${id} answer`;
+  async update(id: string, updateAnswerDto: UpdateAnswerDto) {
+    try {
+      const updatedAnswer = await this.answerModel.findByIdAndUpdate(
+        id,
+        updateAnswerDto,
+        { new: true },
+      );
+      return updatedAnswer;
+    } catch (error) {
+      Logger.error('can not update answer', error);
+      throw error;
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} answer`;
+  async remove(id: string) {
+    try {
+      const answer = await this.answerModel.findOneAndDelete({ _id: id });
+      if (!answer) {
+        throw new Error('Answer not found');
+      }
+      await this.questionModel.findByIdAndUpdate(answer.question, {
+        $pull: { answers: id },
+      });
+      return answer;
+    } catch (error) {
+      Logger.error('can not remove answer', error);
+      throw error;
+    }
   }
 }
